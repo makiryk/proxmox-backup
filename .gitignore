@@ -1,0 +1,21 @@
+# Logs & Temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+tmp/
+temp/
+
+# Authentication & Credentials (DO NOT COMMIT)
+*.token
+*.json
+!token.example.json
+.env
+.env.*
+rclone.conf
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
