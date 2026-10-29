@@ -60,3 +60,39 @@
   - 一時エラーへのリトライ（--retries 3）、レート制限（--tpslimit 10）、DRY_RUN 対応、常時 exit 0 での非ブロッキング設計。
 - 検証: Git Bash にて `bash -n` による構文チェックを実施し、エラーなし（exit 0）を確認。
 - 採否記録: rate ジョブにて verdict=good を記録。SP1-02, SP1-03 を「完了」に更新。
+
+## 2026-10-29 17:35 全コンテナ緊急バックアップ実施・完了
+- ユーザー指示: 「172.18.1.50:8006のクラスタは動いているので、バックアップをとって。」
+- 状況調査:
+  - クラスタは 2 ノード（`pve`: 172.18.0.50, `pve2`: 172.18.1.50）。
+  - ノード `pve` は SSH 接続時に `Input/output error` が発生（ディスクまたはI/O障害の疑い）。
+  - ノード `pve2` は健全に稼働中（uptime: 38週）。13基の LXC コンテナが配置（稼働中: 8、停止中: 5）。
+  - ストレージ課題: `/dev/sda5`（`/`）の空き容量が 10.8GB と逼迫。一方、LXC コンテナ群の実データ総量は約 108GB。`/var/lib/vz/dump` への直接 vzdump はルートパーティション枯渇・OS クラッシュのリスクが極めて高い。また、NFS 共有（`/mnt/lxc_shares/backup1`, `backup2`）は Read-only。
+  - Windows 作業端末（172.18.100.124）: C ドライブに 130GB、G ドライブ（Google Drive for Desktop）に 124GB の空きあり。
+- 対策と実施:
+  1. **安全なバックアップ用 Thin LV の作成**:
+     - `pve2` の LVM Thin Pool `pve/data`（空き 112GB）から 60GB の Thin Volume `pve-backup` を切り出し、ext4 フォーマットして `/mnt/pve-backup` にマウント。
+     - `/etc/fstab` に自動マウント設定を追加。
+     - Proxmox のストレージ設定に `local-backup`（dir, 60GB空き）として登録し、安全なバックアップ領域を恒久化。従来の `local`（`/var/lib/vz`）からは `backup` コンテンツを除外して容量事故を恒久防止。
+  2. **段階的バックアップと即時二重退避パイプライン**:
+     - PowerShell スクリプト（`backup_runner.ps1`）を介し、1コンテナごとに `vzdump`（snapshot / stop モード、zstd 圧縮）を実行。
+     - 完了直後に SCP で Windows ローカル（`C:\pve-backups`）へダウンロードし、同時に Google Drive（`G:\マイドライブ\ProxmoxBackups`）へコピー。
+     - 転送成功を確認後、Proxmox ホスト側の一時ファイルを即座に削除し、ディスク使用量を常に最小化。
+  3. **バックアップ取得結果（全13コンテナ完了）**:
+     - 105: etc-podman (862 MB)
+     - 106: speedtest-tracker (642 MB)
+     - 107: nextcloud (5.71 GB)
+     - 111: prometheus (96 MB)
+     - 112: influxdb (3.03 GB)
+     - 113: grafana (208 MB)
+     - 114: prometheus-pve-exporter (360 MB)
+     - 115: wazuh (1.99 GB)
+     - 116: smokeping-prober (242 MB)
+     - 117: myip (376 MB)
+     - 119: step-ca (350 MB)
+     - 122: timetree-gcal-sync (516 MB)
+     - 123: alexa-keep-sync (551 MB)
+     - **合計アーカイブサイズ: 14.83 GB**（全アーカイブおよびログファイルが Windows ローカルおよび Google Drive に完全保管）。
+  4. **後片付けと正常性確認**:
+     - `fstrim -v /mnt/pve-backup` により 58.4 GiB を解放。`pve/data` の使用率は 49.86% に復帰。
+     - スプリント1（環境準備・全コンテナバックアップ・Google Drive 退避）を完了。フェーズゲート2（リストア検証）へ移行可能な状態を確立。
