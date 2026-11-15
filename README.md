@@ -13,11 +13,11 @@ proxmox-backup/
 ├── overview.md          # 技術調査と叩き台
 ├── log.md               # 決定・レビュー・履歴ログ
 ├── docs/                # 設計書・手順書・報告書
-│   ├── design.md        # 要件定義・基本設計書（予定）
-│   ├── manual.md        # 導入・リストア運用手順書（予定）
-│   └── test-report.md   # 動作検証結果報告書（予定）
+│   ├── design.md        # 要件定義・基本設計書
+│   ├── manual.md        # 導入・リストア運用手順書（予定・未作成）
+│   └── test-report.md   # 動作検証結果報告書（予定・未作成）
 └── scripts/             # Proxmox 用スクリプト
-    └── pve-backup-hook.sh # vzdump 連携 / バックアップ同期スクリプト（予定）
+    └── pve-backup-hook.sh # vzdump 連携 / バックアップ同期スクリプト
 ```
 
 ## プロジェクト管理情報
